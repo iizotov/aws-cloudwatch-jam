@@ -104,6 +104,13 @@ spec:
           #  - containerPort: 8125
           #    hostPort: 8125
           #    protocol: UDP
+          resources:
+            limits:
+              cpu:  200m
+              memory: 200Mi
+            requests:
+              cpu: 200m
+              memory: 200Mi
           # Please don't change below envs
           env:
             - name: HOST_IP
@@ -580,6 +587,12 @@ spec:
                   key: cluster.name
             - name: CI_VERSION
               value: "k8s/1.2.1"
+          resources:
+            limits:
+              memory: 1G
+            requests:
+              cpu: 1000m
+              memory: 1G
           volumeMounts:
             - name: config-volume
               mountPath: /config-volume
