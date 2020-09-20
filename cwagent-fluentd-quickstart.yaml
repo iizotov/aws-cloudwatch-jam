@@ -104,13 +104,6 @@ spec:
           #  - containerPort: 8125
           #    hostPort: 8125
           #    protocol: UDP
-          resources:
-            limits:
-              cpu:  200m
-              memory: 200Mi
-            requests:
-              cpu: 200m
-              memory: 200Mi
           # Please don't change below envs
           env:
             - name: HOST_IP
@@ -282,8 +275,10 @@ data:
       <filter **>
         @type record_transformer
         @id filter_fluentd_stream_transformer
+        enable_ruby
         <record>
           stream_name ${tag_parts[3]}
+          loggroup_name /aws/eks/#{ENV.fetch('CLUSTER_NAME')}/fluentd.log
         </record>
       </filter>
 
@@ -302,8 +297,10 @@ data:
       <filter **>
         @type record_transformer
         @id filter_containers_stream_transformer
+        enable_ruby
         <record>
           stream_name ${tag_parts[3]}
+          loggroup_name /aws/eks/#{ENV.fetch('CLUSTER_NAME')}/${record.dig("kubernetes", "labels", "app")}
         </record>
       </filter>
 
@@ -331,8 +328,10 @@ data:
       <filter **>
         @type record_transformer
         @id filter_cwagent_stream_transformer
+        enable_ruby
         <record>
           stream_name ${tag_parts[3]}
+          loggroup_name /aws/eks/#{ENV.fetch('CLUSTER_NAME')}/cwagent.log
         </record>
       </filter>
 
@@ -356,15 +355,20 @@ data:
         @type cloudwatch_logs
         @id out_cloudwatch_logs_containers
         region "#{ENV.fetch('REGION')}"
-        log_group_name "/aws/containerinsights/#{ENV.fetch('CLUSTER_NAME')}/application"
+        log_group_name_key loggroup_name
         log_stream_name_key stream_name
-        remove_log_stream_name_key true
+        remove_log_stream_name_key false
+        remove_log_group_name_key false
         auto_create_stream true
-        <buffer>
+        concurrency 32
+        max_events_per_batch 100000
+        <buffer stream_name>
+          @type memory
           flush_interval 5
-          chunk_limit_size 2m
+          chunk_limit_size 1m
           queued_chunks_limit_size 32
-          retry_forever true
+          retry_max_times 10
+          disable_chunk_backup true
         </buffer>
       </match>
     </label>
@@ -576,12 +580,6 @@ spec:
                   key: cluster.name
             - name: CI_VERSION
               value: "k8s/1.2.1"
-          resources:
-            limits:
-              memory: 400Mi
-            requests:
-              cpu: 100m
-              memory: 200Mi
           volumeMounts:
             - name: config-volume
               mountPath: /config-volume
